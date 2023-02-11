@@ -7,6 +7,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.neural_network import MLPClassifier
 from sklearn.metrics import accuracy_score
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import confusion_matrix
+import matplotlib.pyplot as plt
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 #DataFlair - Extract features (mfcc, chroma, mel) from a sound file
@@ -81,10 +83,20 @@ y_pred=model.predict(x_test)
 #DataFlair - Calculate the accuracy of our model
 accuracy=accuracy_score(y_true=y_test, y_pred=y_pred)
 accuracy1=accuracy_score(y_true=y_test, y_pred=y_pred1)
+conf_matrix = confusion_matrix(y_test, y_pred, labels=observed_emotions)
+
+#DataFlair - Print the confusion matrix
+print("Confusion Matrix:")
+print(conf_matrix)
 
 #DataFlair - Print the accuracy
 print("Accuracy: {:.2f}%".format(accuracy*100))
 print("Accuracy1: {:.2f}%".format(accuracy1*100))
+
+#DataFlair - Calculate the accuracy of each emotion
+neutral_accuracy = conf_matrix[0, 0] / (conf_matrix[0, 0] + conf_matrix[0, 1] + conf_matrix[0, 2])
+happy_accuracy = conf_matrix[1, 1] / (conf_matrix[1, 0] + conf_matrix[1, 1] + conf_matrix[1, 2])
+sad_accuracy = conf_matrix[2, 2] / (conf_matrix[2, 0] + conf_matrix[2, 1] + conf_matrix[2, 2])
 
 def predict_emotion(file_name):
     feature = extract_feature(file_name, mfcc=True, chroma=True, mel=True)
@@ -95,4 +107,16 @@ def predict_emotion(file_name):
 # DataFlair - Predict the emotion of a specific audio file
 file_name = 'C:/Users/ninht/Downloads/emotion_entrain/Sad/03-01-04-01-01-01-01.wav'
 emotion = predict_emotion(file_name)
+#DataFlair - Print the accuracy of each emotion
+print("Accuracy of Neutral: {:.2f}%".format(neutral_accuracy * 100))
+print("Accuracy of Happy: {:.2f}%".format(happy_accuracy * 100))
+print("Accuracy of Sad: {:.2f}%".format(sad_accuracy * 100))
 print(f'Emotion: {emotion}')
+emotions = ['neutral', 'happy', 'sad']
+percents = [neutral_accuracy, happy_accuracy,sad_accuracy ]
+plt.bar(emotions, percents)
+plt.ylabel('Percentage')
+plt.xlabel('Emotion')
+plt.title('Percentage of Correct Predictions by Emotion')
+
+plt.show()
