@@ -1,0 +1,171 @@
+import pickle
+import librosa
+import soundfile
+import os
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.neural_network import MLPClassifier
+from sklearn.metrics import accuracy_score
+from sklearn.ensemble import RandomForestClassifier
+import subprocess
+import matplotlib.pyplot as plt
+
+#entry_file = 'IHM/Locuteur/B/output4B.wav'
+
+def analyse_audio(file_name):
+    """
+        import argparse
+        import os
+
+        parser = argparse.ArgumentParser(description='Process some files.')
+        parser.add_argument('--force', dest='force', action='store_true',
+                            help='force deletion of existing files')
+
+        args = parser.parse_args()
+
+        if args.force:
+            # Supprimez les fichiers existants sans demander confirmation
+            os.remove(file_name)
+        else:
+            # Demandez confirmation avant de supprimer les fichiers existants
+            answer = input("Do you want to delete the existing file? (y/n)")
+            if answer.lower() == 'y':
+                os.remove(file_name)
+    """
+    Moyenne_A = [] #On va ici stocker chacune des valeurs des émotions du locuteur A enfin d'en faire la moyenne
+    Moyenne_B = [] #On va ici stocker chacune des valeurs des émotions du locuteur B enfin d'en faire la moyenne
+    Joie =[]
+    Triste = []
+    Neutre = []
+    JoieB =[]
+    TristeB = []
+    NeutreB = []   
+
+     # Chargement du modèle
+    with open('model.pkl', 'rb') as file:
+        loaded_model = pickle.load(file)     
+
+    def convert_to_mono(stereo_file, mono_file):
+        if os.path.exists(stereo_file):
+            os.remove(stereo_file)
+        subprocess.run(["ffmpeg", "-i", stereo_file, "-ac", "1", mono_file])
+
+    def extract_feature(file_name, mfcc, chroma, mel):
+            with soundfile.SoundFile(file_name) as sound_file:
+                X = sound_file.read(dtype="float32")
+                sample_rate=sound_file.samplerate
+                if chroma:
+                    stft=np.abs(librosa.stft(X))
+                result=np.array([])
+                if mfcc:
+                    mfccs=np.mean(librosa.feature.mfcc(y=X, sr=sample_rate, n_mfcc=40).T, axis=0)
+                    result=np.hstack((result, mfccs))
+                if chroma:
+                    chroma=np.mean(librosa.feature.chroma_stft(S=stft, sr=sample_rate).T,axis=0)
+                    result=np.hstack((result, chroma))
+                if mel:
+                    mel=np.mean(librosa.feature.melspectrogram(X, sr=sample_rate).T,axis=0)
+                    result=np.hstack((result, mel))
+            return result   
+
+    for i in range(1,10):
+        stereo_file = 'A/'+'output'+str(i)+'A.wav'
+        mono_file = 'A/'+'finale'+str(i)+'A.wav'
+        #print(mono_file)
+        convert_to_mono(stereo_file, mono_file)
+        analyse_file = 'A/'+'finale'+str(i)+'A.wav'
+        # Prédiction de l'émotion dans un nouveau fichier audio
+        new_audio = extract_feature(analyse_file, mfcc=True, chroma=True, mel=True)
+        prediction = loaded_model.predict(np.array([new_audio]))[0]
+        print('Emotion prédominante:', prediction)
+        if prediction == 'happy':
+            emotion = 1
+        if prediction == 'neutral':
+            emotion = 0
+        if prediction == 'sad':
+            emotion = -1        
+        Moyenne_A.append(emotion)
+        print(Moyenne_A)
+        
+
+    for i in range(1,10):
+        stereo_file = 'B/'+'output'+str(i)+'B.wav'
+        mono_file = 'B/'+'finale'+str(i)+'B.wav'
+        #print(mono_file)
+        convert_to_mono(stereo_file, mono_file)
+        analyse_file = 'B/'+'finale'+str(i)+'B.wav'
+        # Prédiction de l'émotion dans un nouveau fichier audio
+        new_audio = extract_feature(analyse_file, mfcc=True, chroma=True, mel=True)
+        prediction = loaded_model.predict(np.array([new_audio]))[0]
+        print('Emotion prédominante:', prediction)
+        if prediction == 'happy':
+            emotion = 1
+        if prediction == 'neutral':
+            emotion = 0
+        if prediction == 'sad':
+            emotion = -1        
+        Moyenne_B.append(emotion)
+        print(Moyenne_B)
+
+    print(Moyenne_A)
+    print(len(Moyenne_A))
+    moyenne = sum(Moyenne_A)/len(Moyenne_A)
+    moyenneB = sum(Moyenne_B)/len(Moyenne_B)
+
+    print("Concernant A : ")
+    if moyenne > 0:
+            print("La Moyenne des émotions est de "+ str(moyenne) +" c'est donc une prise de parole majoritairement joyeuse")
+    elif moyenne < 0:
+            print("La Moyenne des émotions est de "+ str(moyenne) +" c'est donc une prise de parole majoritairement triste")
+    else:
+            print("La Moyenne des émotions est de "+ str(moyenne) +" c'est donc une prise de parole majoritairement sans emotion")
+
+    print("Concernant B : ")
+    if moyenneB > 0:
+            print("La Moyenne des émotions est de "+ str(moyenneB) +" c'est donc une prise de parole majoritairement joyeuse")
+    elif moyenneB < 0:
+                print("La Moyenne des émotions est de "+ str(moyenneB) +" c'est donc une prise de parole majoritairement triste")
+    else:
+                print("La Moyenne des émotions est de "+ str(moyenneB) +" c'est donc une prise de parole majoritairement sans emotion")
+
+
+    for i in range(len(Moyenne_A)):
+            if Moyenne_A[i] > 0 :
+                Joie.append(Moyenne_A[i])
+            elif Moyenne_A[i] < 0 :
+                Triste.append(Moyenne_A[i])
+            else: 
+                Neutre.append(Moyenne_A[i])
+
+    stat_joie = (len(Joie)/len(Moyenne_A))*100
+    stat_triste = (len(Triste)/len(Moyenne_A))*100
+    stat_neutre = (len(Neutre)/len(Moyenne_A))*100
+
+    print('Le pourcentage final de chaque émotion pour le locuteur A est :\nPour la tristesse : '+str(stat_triste)+'%\nPour la joie : '+str(stat_joie)+'%\nNeutre : '+str(stat_neutre)+"%")
+
+
+    for i in range(len(Moyenne_B)):
+            if Moyenne_B[i] > 0 :
+                JoieB.append(Moyenne_B[i])
+            elif Moyenne_B[i] < 0 :
+                TristeB.append(Moyenne_B[i])
+            else: 
+                NeutreB.append(Moyenne_B[i])
+
+    stat_joieB = (len(JoieB)/len(Moyenne_B))*100
+    stat_tristeB = (len(TristeB)/len(Moyenne_B))*100
+    stat_neutreB = (len(NeutreB)/len(Moyenne_B))*100
+
+    print('Le pourcentage final de chaque émotion pour le locuteur B est :\nPour la tristesse : '+str(stat_tristeB)+'%\nPour la joie : '+str(stat_joieB)+'%\nNeutre : '+str(stat_neutreB)+"%")
+
+    plt.bar(range(3), [stat_joie,stat_triste,stat_neutre], width = 0.6, color = 'yellow',
+    #edgecolor = 'blue', linewidth = 2, yerr = [0.5, 1, 2, 1, 2],
+    ecolor = 'magenta', capsize = 10)
+    plt.xticks(range(3), ['Positif', 'Neutre', 'Négatif'],
+    rotation = 45)
+    plt.show()
+        
+
+    
+
+analyse_audio('A/1output1A.wav')

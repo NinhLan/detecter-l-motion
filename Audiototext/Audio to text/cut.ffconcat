@@ -1,0 +1,9 @@
+ffconcat version 1.0
+
+file input.mp3
+inpoint 0.0
+outpoint 5.9
+
+file input.mp3
+inpoint 5.9
+outpoint 7.4
